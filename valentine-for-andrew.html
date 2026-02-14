@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Valentine's Day Game</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes float {
+            0%, 100% { transform: translateY(100vh) rotate(0deg); }
+            50% { transform: translateY(-20vh) rotate(180deg); }
+        }
+        .animate-float {
+            animation: float linear infinite;
+            pointer-events: none;
+            z-index: 1;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            10%, 30%, 50%, 70%, 90% { transform: translateX(-10px); }
+            20%, 40%, 60%, 80% { transform: translateX(10px); }
+        }
+        .animate-shake {
+            animation: shake 0.5s infinite;
+        }
+        @keyframes credits {
+            from { transform: translateY(100vh); }
+            to { transform: translateY(-100%); }
+        }
+        .animate-credits {
+            animation: credits linear forwards;
+        }
+        .hearts-hud {
+            position: fixed;
+            top: 50%;
+            right: 16px;
+            transform: translateY(-50%);
+            z-index: 9999;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            padding: 16px 12px;
+            border-radius: 9999px;
+            border: 2px solid rgba(244, 63, 94, 0.3);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-size: 28px;
+            pointer-events: none;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app"></div>
+
+    <script>
+        const CORRECT_ANSWERS = {
+            0: '0820',
+            1: 'lips',
+            2: 'knife',
+            3: 'valentine'
+        };
+
+        const MESSAGE_DURATION = 90000;
+        const HUD_SAFE_ZONE = {
+            right: 260,
+            top: 90
+        };
+
+        let state = {
+            screen: 'landing',
+            hearts: 9,
+            hoverText: false,
+            showButtons: false,
+            noButtonPos: { x: 0, y: 0 },
+            yesButtonScale: 1,
+            showConfetti: false,
+            floatingEmojis: [],
+            currentQuestion: 0,
+            q1Answer: '',
+            showCongratsButton: false,
+            showMessage: false,
+            creditsFinished: false,
+            showRelationshipMessage: false,
+            showMissionDetails: false
+        };
+
+        function initFloatingEmojis() {
+            const emojis = [];
+            const emojiList = ['❤️', '💘', '🌹', '🍰', '🍷', '💐', '🍫'];
+            
+            for (let i = 0; i < 25; i++) {
+                let left, top;
+                let attempts = 0;
+                const maxAttempts = 50;
+                
+                do {
+                    left = Math.random() * 100;
+                    top = Math.random() * 100;
+                    attempts++;
+                    
+                    const isInHUDZone = (left > 70 && top < 15);
+                    
+                    if (!isInHUDZone || attempts >= maxAttempts) {
+                        break;
+                    }
+                } while (attempts < maxAttempts);
+                
+                emojis.push({
+                    id: i,
+                    emoji: emojiList[Math.floor(Math.random() * emojiList.length)],
+                    left: left,
+                    top: top,
+                    delay: Math.random() * 5,
+                    duration: 15 + Math.random() * 10,
+                    size: 20 + Math.random() * 40
+                });
+            }
+            state.floatingEmojis = emojis;
+        }
+
+        function renderFloatingEmojis() {
+            return state.floatingEmojis.map(function(item) {
+                return '<div class="absolute opacity-20 animate-float" style="left: ' + item.left + '%; top: ' + item.top + '%; animation-delay: ' + item.delay + 's; animation-duration: ' + item.duration + 's; font-size: ' + item.size + 'px;">' + item.emoji + '</div>';
+            }).join('');
+        }
+
+        function renderHearts() {
+            var hearts = '';
+            for (var i = 0; i < state.hearts; i++) {
+                hearts += '<div>❤️</div>';
+            }
+            return '<div class="hearts-hud">' + hearts + '</div>';
+        }
+
+        function handleNoProximity(e) {
+            if (state.hearts <= 0) return;
+            
+            const button = e.target;
+            const rect = button.getBoundingClientRect();
+            const maxX = window.innerWidth - rect.width - 20;
+            const maxY = window.innerHeight - rect.height - 20;
+            
+            state.noButtonPos = {
+                x: Math.random() * maxX,
+                y: Math.random() * maxY
+            };
+            state.yesButtonScale += 0.25;
+            state.hearts = Math.max(0, state.hearts - 1);
+            
+            if (state.hearts === 0) {
+                state.screen = 'fail';
+            }
+            
+            render();
+        }
+
+        function handleNoClick() {
+            alert("Error: Think again!");
+        }
+
+        function handleYesClick() {
+            state.screen = 'game';
+            state.showConfetti = true;
+            render();
+            
+            setTimeout(function() {
+                state.showConfetti = false;
+                render();
+            }, 3000);
+        }
+
+        function handleAnswer(questionNum, answer) {
+            const correct = CORRECT_ANSWERS[questionNum];
+            
+            if (answer === correct) {
+                if (questionNum === 3) {
+                    state.showCongratsButton = true;
+                } else {
+                    state.currentQuestion = questionNum + 1;
+                }
+                render();
+            } else {
+                state.hearts = Math.max(0, state.hearts - 1);
+                if (state.hearts === 0) {
+                    setTimeout(function() {
+                        state.screen = 'fail';
+                        render();
+                    }, 100);
+                } else {
+                    render();
+                }
+            }
+        }
+
+        function handleTitleHover() {
+            state.hoverText = true;
+            state.showButtons = true;
+            render();
+        }
+
+        function submitQ1() {
+            handleAnswer(0, state.q1Answer);
+        }
+
+        function showMessage() {
+            state.screen = 'success';
+            state.showMessage = true;
+            render();
+            
+            setTimeout(function() {
+                state.creditsFinished = true;
+                render();
+            }, MESSAGE_DURATION);
+        }
+
+        function showRelationshipMessage() {
+            state.showRelationshipMessage = true;
+            render();
+        }
+
+        function showMissionDetails() {
+            state.showMissionDetails = true;
+            render();
+        }
+
+        function renderLandingScreen() {
+            var html = '<div class="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 flex items-center justify-center relative overflow-hidden">';
+            html += renderFloatingEmojis();
+            html += renderHearts();
+            html += '<div class="text-center z-10 px-4">';
+            html += '<h1 class="text-6xl font-bold text-rose-600 mb-12 cursor-pointer transition-all duration-300" onmouseenter="handleTitleHover()">';
+            html += state.hoverText ? 'I have a mission for you' : 'Hey Andrew';
+            html += '</h1>';
+            
+            if (state.showButtons) {
+                html += '<div class="flex gap-6 justify-center items-center">';
+                html += '<button onclick="handleYesClick()" class="bg-rose-500 hover:bg-rose-600 text-white font-bold text-2xl px-12 py-6 rounded-full shadow-lg transition-all duration-200 hover:shadow-2xl z-20" style="transform: scale(' + state.yesButtonScale + ');">Yes 💖</button>';
+                html += '<button onmouseenter="handleNoProximity(event)" onclick="handleNoClick()" class="bg-gray-300 hover:bg-gray-400 text-gray-700 font-bold text-2xl px-12 py-6 rounded-full shadow-lg transition-all duration-200 z-20" style="position: ' + (state.noButtonPos.x || state.noButtonPos.y ? 'fixed' : 'relative') + '; left: ' + (state.noButtonPos.x ? state.noButtonPos.x + 'px' : 'auto') + '; top: ' + (state.noButtonPos.y ? state.noButtonPos.y + 'px' : 'auto') + '; transition: left 0.3s ease, top 0.3s ease;">No 😢</button>';
+                html += '</div>';
+            }
+            
+            html += '</div></div>';
+            return html;
+        }
+
+        function renderGameScreen() {
+            var html = '<div class="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 p-8 relative overflow-hidden">';
+            html += renderFloatingEmojis();
+            
+            if (state.showConfetti) {
+                html += '<div class="absolute inset-0 pointer-events-none z-50">';
+                for (var i = 0; i < 80; i++) {
+                    var emojis = ['❤️', '💕', '💖', '💗', '🌹'];
+                    html += '<div class="absolute animate-bounce" style="left: ' + (Math.random() * 100) + '%; top: -' + (Math.random() * 20) + '%; animation-delay: ' + (Math.random() * 2) + 's; animation-duration: ' + (2 + Math.random() * 3) + 's; font-size: ' + (15 + Math.random() * 15) + 'px;">' + emojis[Math.floor(Math.random() * 5)] + '</div>';
+                }
+                html += '</div>';
+            }
+
+            html += renderHearts();
+            html += '<div class="max-w-2xl mx-auto bg-white/80 backdrop-blur rounded-3xl shadow-xl p-8 relative z-10">';
+            
+            if (state.showCongratsButton) {
+                html += '<div class="text-center space-y-8">';
+                html += '<h1 class="text-4xl font-bold text-rose-600">Congrats! You\'ve cleared all the questions. 🎉</h1>';
+                html += '<p class="text-2xl text-gray-700">I have a message for you...</p>';
+                html += '<button onclick="showMessage()" class="bg-rose-500 text-white px-12 py-6 rounded-full text-2xl font-bold hover:bg-rose-600 shadow-2xl animate-bounce">Read Message 💌</button>';
+                html += '</div>';
+            } else {
+                html += '<h1 class="text-4xl font-bold text-rose-600 text-center mb-8">Your survivor game begins</h1>';
+                html += '<div class="space-y-8">';
+                
+                if (state.currentQuestion === 0) {
+                    html += '<div class="space-y-4"><p class="text-2xl font-semibold text-gray-800">💘 What is SeungA\'s Netflix passcode?</p>';
+                    html += '<input type="text" maxlength="4" id="q1-input" value="' + state.q1Answer + '" placeholder="XXXX" class="w-full px-6 py-4 text-2xl border-2 border-rose-300 rounded-xl focus:border-rose-500 focus:outline-none text-center" />';
+                    html += '<button onclick="submitQ1()" class="w-full bg-rose-500 text-white py-4 rounded-xl text-xl font-bold hover:bg-rose-600 transition">Submit</button></div>';
+                } else if (state.currentQuestion === 1) {
+                    html += '<div class="space-y-4"><p class="text-2xl font-semibold text-gray-800">💋 What is her favorite body part of you?</p>';
+                    html += '<div class="space-y-3">';
+                    html += '<button onclick="handleAnswer(1, \'lips\')" class="w-full bg-rose-100 hover:bg-rose-200 text-gray-800 py-4 rounded-xl text-xl font-semibold transition">lips</button>';
+                    html += '<button onclick="handleAnswer(1, \'shoulders\')" class="w-full bg-rose-100 hover:bg-rose-200 text-gray-800 py-4 rounded-xl text-xl font-semibold transition">shoulders</button>';
+                    html += '<button onclick="handleAnswer(1, \'injoong\')" class="w-full bg-rose-100 hover:bg-rose-200 text-gray-800 py-4 rounded-xl text-xl font-semibold transition">injoong</button>';
+                    html += '</div></div>';
+                } else if (state.currentQuestion === 2) {
+                    html += '<div class="space-y-4"><p class="text-2xl font-semibold text-gray-800">💌 What is her favorite emoji when she\'s upset?</p>';
+                    html += '<div class="space-y-3">';
+                    html += '<button onclick="handleAnswer(2, \'cloud\')" class="w-full bg-rose-100 hover:bg-rose-200 text-gray-800 py-4 rounded-xl text-4xl font-semibold transition">💀</button>';
+                    html += '<button onclick="handleAnswer(2, \'knife\')" class="w-full bg-rose-100 hover:bg-rose-200 text-gray-800 py-4 rounded-xl text-4xl font-semibold transition">🔪</button>';
+                    html += '<button onclick="handleAnswer(2, \'wink\')" class="w-full bg-rose-100 hover:bg-rose-200 text-gray-800 py-4 rounded-xl text-4xl font-semibold transition">🔥</button>';
+                    html += '</div></div>';
+                } else if (state.currentQuestion === 3) {
+                    html += '<div class="space-y-4"><p class="text-2xl font-semibold text-gray-800">💖 She is my one and only...</p>';
+                    html += '<div class="space-y-3">';
+                    html += '<button onclick="handleAnswer(3, \'girl\')" class="w-full bg-rose-100 hover:bg-rose-200 text-gray-800 py-4 rounded-xl text-xl font-semibold transition">girl</button>';
+                    html += '<button onclick="handleAnswer(3, \'baby\')" class="w-full bg-rose-100 hover:bg-rose-200 text-gray-800 py-4 rounded-xl text-xl font-semibold transition">baby</button>';
+                    html += '<button onclick="handleAnswer(3, \'valentine\')" class="w-full bg-rose-100 hover:bg-rose-200 text-gray-800 py-4 rounded-xl text-xl font-semibold transition">valentine</button>';
+                    html += '</div></div>';
+                }
+                
+                html += '</div>';
+            }
+            
+            html += '</div></div>';
+            return html;
+        }
+
+        function renderFailScreen() {
+            return '<div class="min-h-screen bg-black flex items-center justify-center animate-pulse"><h1 class="text-6xl font-bold text-red-600 animate-shake">YOU ARE DOOMED.</h1></div>';
+        }
+
+        function renderSuccessScreen() {
+            if (state.showMessage && !state.creditsFinished) {
+                var html = '<div class="min-h-screen bg-gradient-to-br from-pink-50 to-rose-100 relative overflow-hidden">';
+                html += '<div class="absolute inset-0 overflow-hidden">';
+                html += '<div class="w-full flex justify-center animate-credits" style="animation-duration: ' + (MESSAGE_DURATION / 1000) + 's;">';
+                html += '<div class="space-y-32 text-7xl leading-relaxed max-w-7xl font-bold text-rose-600 text-center px-8">';
+                html += '<div class="space-y-6"><p>So.............</p></div>';
+                html += '<div class="space-y-6"><p>...............</p></div>';
+                html += '<div class="space-y-6"><p>..............</p></div>';
+                html += '<div class="space-y-6"><p>My Dearest Andrew,</p></div>';
+                html += '<div class="space-y-6"><p>This is my apology message for you.</p></div>';
+                html += '<div class="space-y-6"><p>I\'m apologizing even when you\'re the one that caused this..</p></div>';
+                html += '<div class="space-y-6"><p>Because I do appreciate you trying.</p></div>';
+                html += '<div class="space-y-6"><p>But sometimes it doesn\'t work.</p></div>';
+                html += '<div class="space-y-6"><p>So, here I am.</p></div>';
+                html += '<div class="space-y-6"><p>I\'m so deeply sorry for</p><p>all the times I let</p><p>you down.</p></div>';
+                html += '<div class="space-y-6"><p>I\'m sorry for when I</p><p>didn\'t listen well enough when</p><p>you needed me most.</p></div>';
+                html += '<div class="space-y-6"><p>Sorry for the moments I</p><p>was distracted and not fully</p><p>present with you.</p></div>';
+                html += '<div class="space-y-6"><p>I\'m truly sorry for every</p><p>time I made you feel</p><p>less than my priority.</p></div>';
+                html += '<div class="space-y-6"><p>I know I\'ve been selfish</p><p>and thoughtless at times. I\'m</p><p>genuinely so sorry for that.</p></div>';
+                html += '<div class="space-y-6"><p>You deserve so much better</p><p>than my mistakes. I truly</p><p>want to do better.</p></div>';
+                html += '<div class="space-y-6"><p>Your patience with me means</p><p>everything. Thank you for not</p><p>giving up on me.</p></div>';
+                html += '<div class="space-y-6"><p>Mostly importantly, I love how you light</p><p>up my entire world with</p><p>your full smile.</p></div>';
+                html += '<div class="space-y-6"><p>I love your kind heart</p><p>and steady spirit. You inspire</p><p>me every single day.</p></div>';
+                html += '<div class="space-y-6"><p>I promise to work harder</p><p>at showing you just how</p><p>much you truly matter.</p></div>';
+                html += '<div class="space-y-6"><p>I promise to listen more</p><p>carefully and be more present</p><p>for you always.</p></div>';
+                html += '<div class="space-y-6"><p>You are worth everything to</p><p>me. I\'m committed to being</p><p>better for you.</p></div>';
+                html += '<div class="space-y-6"><p>Forever yours,</p><p>SeungA</p></div>';
+                html += '<div class="h-32"></div>';
+                html += '</div></div></div></div>';
+                return html;
+            }
+            
+            if (state.creditsFinished && !state.showRelationshipMessage) {
+                return '<div class="min-h-screen bg-gradient-to-br from-pink-50 to-rose-100 flex items-center justify-center overflow-hidden relative"><div class="text-center z-20"><p class="text-6xl mb-8 font-bold text-rose-600">Will you be my Valentine? 😊</p><button onclick="showRelationshipMessage()" class="bg-rose-500 text-white px-12 py-6 rounded-full text-3xl font-bold hover:bg-rose-600 shadow-2xl animate-bounce">Yes! Send deets 💕</button></div></div>';
+            }
+            
+            if (state.showRelationshipMessage && !state.showMissionDetails) {
+                return '<div class="min-h-screen bg-gradient-to-br from-pink-50 to-rose-100 flex items-center justify-center overflow-hidden relative"><div class="text-center px-8 z-20"><p class="text-5xl mb-8 font-bold text-rose-600">Well, relationships aren\'t so easy right?</p><button onclick="showMissionDetails()" class="bg-rose-500 text-white px-12 py-6 rounded-full text-3xl font-bold hover:bg-rose-600 shadow-2xl">Continue 💝</button></div></div>';
+            }
+            
+            if (state.showMissionDetails) {
+                var html = '<div class="min-h-screen bg-gradient-to-br from-pink-50 to-rose-100 flex items-center justify-center overflow-hidden relative">';
+                html += '<div class="text-center px-8 max-w-4xl z-20">';
+                html += '<h2 class="text-6xl font-bold text-rose-600 mb-12">Mission: How to make up to her 🎯</h2>';
+                html += '<div class="bg-white/90 backdrop-blur rounded-3xl shadow-2xl p-12 text-left">';
+                html += '<div class="space-y-6 text-3xl">';
+                html += '<p><strong class="text-rose-600">📍 Location:</strong> SeungA\'s place</p>';
+                html += '<p><strong class="text-rose-600">⏰ Time:</strong> 7pm-ish</p>';
+                html += '<p class="text-4xl font-bold text-rose-600 mt-8 mb-4">Mission:</p>';
+                html += '<ul class="space-y-4 ml-8 list-none">';
+                html += '<li>1. 💐 Flowers</li>';
+                html += '<li>2. 🍰 Chocolate cake</li>';
+                html += '<li>3. 🥩 Steak</li>';
+                html += '<li>4. 🍷 Wine</li>';
+                html += '<li>5. 🎁 Surprise present</li>';
+                html += '</ul>';
+                html += '<p class="text-2xl mt-8 italic text-gray-700 border-t-2 border-rose-300 pt-6"><strong>P.S.</strong> Failing to provide even at least one of the above will result in 3 months of zero emotional tolerance. 💀🔥🔪</p>';
+                html += '</div></div></div></div>';
+                return html;
+            }
+            
+            return '';
+        }
+
+        function render() {
+            const app = document.getElementById('app');
+            
+            if (state.screen === 'landing') {
+                app.innerHTML = renderLandingScreen();
+            } else if (state.screen === 'game') {
+                app.innerHTML = renderGameScreen();
+                const q1Input = document.getElementById('q1-input');
+                if (q1Input) {
+                    q1Input.addEventListener('input', function(e) {
+                        state.q1Answer = e.target.value;
+                    });
+                }
+            } else if (state.screen === 'fail') {
+                app.innerHTML = renderFailScreen();
+            } else if (state.screen === 'success') {
+                app.innerHTML = renderSuccessScreen();
+            }
+        }
+
+        initFloatingEmojis();
+        render();
+    </script>
+</body>
+</html>
