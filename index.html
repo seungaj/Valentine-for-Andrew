@@ -61,7 +61,7 @@
             3: 'valentine'
         };
 
-        const MESSAGE_DURATION = 90000;
+        const MESSAGE_DURATION = 60000;
         const HUD_SAFE_ZONE = {
             right: 260,
             top: 90
@@ -245,7 +245,7 @@
         }
 
         function renderGameScreen() {
-            var html = '<div class="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 p-8 relative overflow-hidden">';
+            var html = '<div class="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-50 p-8 relative overflow-hidden flex items-center justify-center">';
             html += renderFloatingEmojis();
             
             if (state.showConfetti) {
@@ -336,7 +336,7 @@
                 html += '<div class="space-y-6"><p>I promise to listen more</p><p>carefully and be more present</p><p>for you always.</p></div>';
                 html += '<div class="space-y-6"><p>You are worth everything to</p><p>me. I\'m committed to being</p><p>better for you.</p></div>';
                 html += '<div class="space-y-6"><p>Forever yours,</p><p>SeungA</p></div>';
-                html += '<div class="space-y-6"><p>💖💘❤️💘💖💕❤️💘💖💘💕❤️💕💖💗❤️💕💘💖❤️💘💕❤️💕💘</div>';
+                html += '<div class="space-y-6"><p>💖💘❤️💘💖💕❤️💘💖💘💕❤️💕💖💗❤️💕💘💖❤️💘💕❤️💕💘❤️💕💘💖❤️💘💕❤️💕💘</div>';
                 html += '<div class="h-32"></div>';
                 html += '</div></div></div></div>';
                 return html;
@@ -366,7 +366,7 @@
                 html += '<li>4. 🍷 Wine</li>';
                 html += '<li>5. 🎁 Surprise present</li>';
                 html += '</ul>';
-                html += '<p class="text-2xl mt-8 italic text-gray-700 border-t-2 border-rose-300 pt-6"><strong>P.S.</strong> Failing to provide even at least one of the above will result in 3 months of zero emotional tolerance. 💀🔥🔪</p>';
+                html += '<p class="text-2xl mt-8 italic text-gray-700 border-t-2 border-rose-300 pt-6"><strong>P.S.</strong> Failing to provide even ANY of the above by 7PM will result in 3 months of zero emotional tolerance. 💀🔥🔪</p>';
                 html += '</div></div></div></div>';
                 return html;
             }
